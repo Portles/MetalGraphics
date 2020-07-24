@@ -19,6 +19,8 @@ class Renderer: NSObject {
     
     var vertices: [Vertex]!
     
+    var constants = Constants()
+    
     init(device: MTLDevice) {
         super.init()
         
@@ -41,6 +43,19 @@ class Renderer: NSObject {
         renderPipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         renderPipelineDescriptor.vertexFunction = vertexFunction
         renderPipelineDescriptor.fragmentFunction = fragmentFunction
+        
+        let vertexDesriptor = MTLVertexDescriptor()
+        vertexDesriptor.attributes[0].bufferIndex = 0
+        vertexDesriptor.attributes[0].format = .float3
+        vertexDesriptor.attributes[0].offset = 0
+        
+        vertexDesriptor.attributes[1].bufferIndex = 0
+        vertexDesriptor.attributes[1].format = .float4
+        vertexDesriptor.attributes[1].offset = MemoryLayout<float3>.size
+        
+        vertexDesriptor.layouts[0].stride = MemoryLayout<Vertex>.stride
+        
+        renderPipelineDescriptor.vertexDescriptor = vertexDesriptor
         
         do{
             renderPipelineState = try device.makeRenderPipelineState(descriptor: renderPipelineDescriptor)
@@ -80,7 +95,11 @@ extension Renderer: MTKViewDelegate {
         let commandEncoder = commandBuffer?.makeRenderCommandEncoder(descriptor: renderPassDescriptor)
         commandEncoder?.setRenderPipelineState(renderPipelineState)
         
+        let deltaTime = 1 / Float(view.preferredFramesPerSecond)
+        constants.animatedBy += deltaTime
+        
         commandEncoder?.setVertexBuffer(vertexBuffer, offset: 0, index: 0)
+        commandEncoder?.setVertexBytes(&constants, length: MemoryLayout<Constants>.stride, index: 1)
         
         commandEncoder?.drawIndexedPrimitives(type: .triangle, indexCount: indices.count, indexType: .uint16, indexBuffer: indexBuffer, indexBufferOffset: 0)
         commandEncoder?.endEncoding()
